@@ -24,7 +24,6 @@ async function login(page: Page, email: string, password: string) {
 }
 
 async function joinClass(page: Page) {
-  let nextButtonIndex = 4;
 
   if (!classToJoinName || !classToJoinDate || !classToJoinTime) {
     throw new Error('Class to join not found');
