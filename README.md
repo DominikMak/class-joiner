@@ -101,7 +101,7 @@ npm --version
    EMAIL=twoj_email@example.com
    PASSWORD=twoje_haslo
    CLASS_TO_JOIN_NAME=Nazwa zajęć
-   CLASS_TO_JOIN_DATE=DD.MM.YYYY
+   CLASS_TO_JOIN_DATE=DD.MM
    CLASS_TO_JOIN_TIME=HH:MM
    ```
 
@@ -110,7 +110,7 @@ npm --version
    - `EMAIL` - Twój adres email używany do logowania w siłowni
    - `PASSWORD` - Twoje hasło do konta siłowni
    - `CLASS_TO_JOIN_NAME` - Nazwa zajęć, na które chcesz się zapisać (np. "Joga", "Pilates")
-   - `CLASS_TO_JOIN_DATE` - Data zajęć w formacie DD.MM.YYYY (np. "15.12.2024")
+   - `CLASS_TO_JOIN_DATE` - Data zajęć w formacie DD.MM (np. "15.12")
    - `CLASS_TO_JOIN_TIME` - Godzina rozpoczęcia zajęć w formacie HH:MM (np. "18:00")
 
    **Przykład:**
@@ -118,7 +118,7 @@ npm --version
    EMAIL=jan.kowalski@example.com
    PASSWORD=moje_bezpieczne_haslo
    CLASS_TO_JOIN_NAME=Joga
-   CLASS_TO_JOIN_DATE=20.12.2024
+   CLASS_TO_JOIN_DATE=20.12
    CLASS_TO_JOIN_TIME=18:00
    ```
 
