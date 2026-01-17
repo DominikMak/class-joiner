@@ -1,0 +1,59 @@
+name: Auto-Signer Scheduler
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  scan-issues:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Scan pending auto-sign issues
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Fetching pending issues..."
+
+          issues=$(gh issue list \
+            --label "auto-sign:pending" \
+            --state open \
+            --json number,title,body)
+
+          now=$(date -u +"%Y-%m-%dT%H:%M:%S")
+
+          echo "$issues" | jq -c '.[]' | while read issue; do
+            number=$(echo "$issue" | jq -r '.number')
+            body=$(echo "$issue" | jq -r '.body')
+
+            join_at=$(echo "$body" | grep '^join_at=' | cut -d= -f2)
+
+            if [ -z "$join_at" ]; then
+              echo "Issue #$number has no join_at, skipping"
+              continue
+            fi
+
+            if [[ "$join_at" < "$now" ]]; then
+              echo "Issue #$number is due → processing"
+
+              gh issue edit "$number" \
+                --remove-label "auto-sign:pending" \
+                --add-label "auto-sign:processing"
+
+              email=$(echo "$body" | grep '^email=' | cut -d= -f2)
+              password=$(echo "$body" | grep '^password=' | cut -d= -f2)
+              class_name=$(echo "$body" | grep '^class_name=' | cut -d= -f2)
+              class_date=$(echo "$body" | grep '^class_date=' | cut -d= -f2)
+              class_time=$(echo "$body" | grep '^class_time=' | cut -d= -f2)
+
+              gh workflow run auto-signer.yml \
+                -f email="$email" \
+                -f password="$password" \
+                -f class_name="$class_name" \
+                -f class_date="$class_date" \
+                -f class_time="$class_time"
+            else
+              echo "Issue #$number not due yet"
+            fi
+          done
