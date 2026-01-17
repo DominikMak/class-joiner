@@ -17,7 +17,7 @@ jobs:
     environment:
       name: github-pages
     env:
-      ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+      ENCRYPTION_KEY: ${{ secrets.PASSWORD_ENCRYPTION_KEY }}
       REPO_PAT: ${{ secrets.REPO_PAT }}
     steps:
       - name: Checkout
