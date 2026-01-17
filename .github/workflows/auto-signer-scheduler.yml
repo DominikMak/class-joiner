@@ -21,6 +21,8 @@ jobs:
       - name: Scan pending auto-sign issues
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ENCRYPTION_KEY: ${{ secrets.PASSWORD_ENCRYPTION_KEY }}
+
         run: |
           echo "Fetching pending issues..."
 
@@ -50,7 +52,8 @@ jobs:
                 --add-label "auto-sign:processing"
 
               email=$(echo "$body" | grep '^email=' | cut -d= -f2)
-              password=$(echo "$body" | grep '^password=' | cut -d= -f2)
+              password_enc=$(echo "$body" | grep '^password=' | cut -d= -f2)
+              password=$(echo "$password_enc" | openssl enc -aes-256-cbc -a -d -salt -pass pass:"$ENCRYPTION_KEY")
               class_name=$(echo "$body" | grep '^class_name=' | cut -d= -f2)
               class_date=$(echo "$body" | grep '^class_date=' | cut -d= -f2)
               class_time=$(echo "$body" | grep '^class_time=' | cut -d= -f2)
