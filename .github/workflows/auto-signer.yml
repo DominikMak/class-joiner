@@ -3,6 +3,8 @@ name: Auto Signer – Join Class
 on:
   workflow_dispatch:
     inputs:
+      issue_number:
+        required: true
       email:
         required: true
       password:
@@ -43,3 +45,13 @@ jobs:
           CLASS_TO_JOIN_DATE: ${{ inputs.class_date }}
           CLASS_TO_JOIN_TIME: ${{ inputs.class_time }}
         run: npx playwright test
+
+      - name: Mark issue as DONE
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+        run: |
+          gh issue edit "$ISSUE_NUMBER" \
+            --remove-label "auto-sign:processing" \
+            --add-label "auto-sign:done"
