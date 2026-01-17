@@ -39,6 +39,8 @@ jobs:
             number=$(echo "$issue" | jq -r '.number')
             body=$(echo "$issue" | jq -r '.body')
 
+            echo $body
+
             join_at=$(echo "$body" | tr -d '\r' | grep -m1 '^[[:space:]]*join_at=' | cut -d= -f2)
 
             echo $join_at
