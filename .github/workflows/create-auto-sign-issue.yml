@@ -1,0 +1,42 @@
+name: Create Auto-Sign Issue
+
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: "User email"
+        required: true
+      password:
+        description: "Encrypted password"
+        required: true
+      class_name:
+        description: "Class name"
+        required: true
+      class_date:
+        description: "Class date"
+        required: true
+      class_time:
+        description: "Class time"
+        required: true
+      join_at:
+        description: "When to trigger auto-sign (Europe/Warsaw time)"
+        required: true
+
+permissions:
+  issues: write
+
+jobs:
+  create-issue:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create GitHub issue with pending label
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          body="email=${{ inputs.email }}\npassword=${{ inputs.password }}\nclass_name=${{ inputs.class_name }}\nclass_date=${{ inputs.class_date }}\nclass_time=${{ inputs.class_time }}\njoin_at=${{ inputs.join_at }}"
+
+          gh issue create \
+            --title "Auto-sign request | ${inputs.email} | ${inputs.class_name}" \
+            --body "$body" \
+            --label "auto-sign:pending"
