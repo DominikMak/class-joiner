@@ -67,7 +67,7 @@ jobs:
               echo "Email:"
               echo $email
               
-              password_enc=$(echo "$body" | grep -m1 '^[[:space:]]*password=' | cut -d= -f2)
+              password_enc=$(echo "$body" | grep -m1 '^[[:space:]]*password=' | cut -d= -f2-)
 
               echo "Password enc"
               echo $password_enc
