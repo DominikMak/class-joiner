@@ -40,7 +40,7 @@ jobs:
             body=$(echo "$issue" | jq -r '.body')
           
             # Normalize issue body
-            body=$(echo "$body" | tr -d '\r' | sed 's/n/\n/g')
+            body=$(echo "$body" | tr -d '\r' | sed 's/\\n/\n/g')
           
             echo "Normalized body:"
             echo "$body"
