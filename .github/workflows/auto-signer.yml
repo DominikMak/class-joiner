@@ -1,0 +1,54 @@
+name: Auto Signer – Join Class
+
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: "Email do logowania"
+        required: true
+      password:
+        description: "Hasło do logowania"
+        required: true
+      class_name:
+        description: "Nazwa zajęć"
+        required: true
+      class_date:
+        description: "Data zajęć (DD.MM)"
+        required: true
+      class_time:
+        description: "Godzina zajęć (HH:MM)"
+        required: true
+
+run-name: >
+  Join ${{ inputs.class_name }}
+  | ${{ inputs.class_date }} ${{ inputs.class_time }}
+
+jobs:
+  join-class:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Auto-Signer
+        env:
+          EMAIL: ${{ inputs.email }}
+          PASSWORD: ${{ inputs.password }}
+          CLASS_TO_JOIN_NAME: ${{ inputs.class_name }}
+          CLASS_TO_JOIN_DATE: ${{ inputs.class_date }}
+          CLASS_TO_JOIN_TIME: ${{ inputs.class_time }}
+        run: npx playwright test
