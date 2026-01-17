@@ -38,32 +38,36 @@ jobs:
           echo "$issues" | jq -c '.[]' | while read issue; do
             number=$(echo "$issue" | jq -r '.number')
             body=$(echo "$issue" | jq -r '.body')
-
-            echo $body
-
-            join_at=$(echo "$body" | tr -d '\r' | grep -m1 '^[[:space:]]*join_at=' | cut -d= -f2)
-
-            echo $join_at
-
+          
+            # Normalize issue body
+            body=$(echo "$body" | tr -d '\r' | sed 's/n/\n/g')
+          
+            echo "Normalized body:"
+            echo "$body"
+          
+            join_at=$(echo "$body" | grep -m1 '^[[:space:]]*join_at=' | cut -d= -f2)
+          
+            echo "join_at=$join_at"
+          
             if [ -z "$join_at" ]; then
               echo "Issue #$number has no join_at, skipping"
               continue
             fi
-
+          
             if [[ "$join_at" < "$now" ]]; then
               echo "Issue #$number is due → processing"
-
+          
               gh issue edit "$number" \
                 --remove-label "auto-sign:pending" \
                 --add-label "auto-sign:processing"
-
-              email=$(echo "$body" | tr -d '\r' | grep -m1 '^[[:space:]]*email=' | cut -d= -f2)
-              password_enc=$(echo "$body" | tr -d '\r' | grep -m1 '^[[:space:]]*password=' | cut -d= -f2)
+          
+              email=$(echo "$body" | grep -m1 '^[[:space:]]*email=' | cut -d= -f2)
+              password_enc=$(echo "$body" | grep -m1 '^[[:space:]]*password=' | cut -d= -f2)
               password=$(echo "$password_enc" | openssl enc -aes-256-cbc -a -d -salt -pass pass:"$ENCRYPTION_KEY")
-              class_name=$(echo "$body" | tr -d '\r' | grep -m1 '^[[:space:]]*class_name=' | cut -d= -f2)
-              class_date=$(echo "$body" | tr -d '\r' | grep -m1 '^[[:space:]]*class_date=' | cut -d= -f2)
-              class_time=$(echo "$body" | tr -d '\r' | grep -m1 '^[[:space:]]*class_time=' | cut -d= -f2)
-
+              class_name=$(echo "$body" | grep -m1 '^[[:space:]]*class_name=' | cut -d= -f2)
+              class_date=$(echo "$body" | grep -m1 '^[[:space:]]*class_date=' | cut -d= -f2)
+              class_time=$(echo "$body" | grep -m1 '^[[:space:]]*class_time=' | cut -d= -f2)
+          
               gh workflow run auto-signer.yml \
                 -f email="$email" \
                 -f password="$password" \
