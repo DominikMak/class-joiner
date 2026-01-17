@@ -15,6 +15,9 @@ on:
         required: true
       class_time:
         required: true
+        
+permissions:
+  issues: write
 
 run-name: >
   Join ${{ inputs.class_name }}
