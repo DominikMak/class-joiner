@@ -24,12 +24,16 @@ on:
 
 permissions:
   issues: write
+  actions: write
 
 jobs:
   create-issue:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
       - name: Create GitHub issue with pending label
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
