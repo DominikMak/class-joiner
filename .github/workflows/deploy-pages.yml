@@ -44,8 +44,8 @@ jobs:
           # Create the environment variables script
           env_script = f'''    <script>
             // Injected from GitHub Secrets
-            const ENCRYPTION_KEY = '{encryption_key}';
-            const REPO_PAT = '{repo_pat}';
+            window.ENCRYPTION_KEY = '{encryption_key}';
+            window.REPO_PAT = '{repo_pat}';
           </script>
           '''
           
