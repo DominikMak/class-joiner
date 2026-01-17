@@ -38,9 +38,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          password_enc=$(echo "${{ inputs.password }}" | openssl enc -aes-256-cbc -a -salt -pass pass:"$ENCRYPTION_KEY")
-          body="email=${{ inputs.email }}\npassword=$password_enc\nclass_name=${{ inputs.class_name }}\nclass_date=${{ inputs.class_date }}\nclass_time=${{ inputs.class_time }}\njoin_at=${{ inputs.join_at }}"
-
+          body="email=${{ inputs.email }}\npassword=${{ inputs.password }}\nclass_name=${{ inputs.class_name }}\nclass_date=${{ inputs.class_date }}\nclass_time=${{ inputs.class_time }}\njoin_at=${{ inputs.join_at }}"
           gh issue create \
             --title "Auto-sign request | ${{inputs.email}} | ${{inputs.class_name}}" \
             --body "$body" \
