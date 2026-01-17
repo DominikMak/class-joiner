@@ -37,7 +37,7 @@ jobs:
             number=$(echo "$issue" | jq -r '.number')
             body=$(echo "$issue" | jq -r '.body')
 
-            join_at=$(echo "$body" | grep '^join_at=' | cut -d= -f2)
+            join_at=$(echo "$body" | tr -d '\r' | grep -m1 'join_at=' | cut -d= -f2)
 
             if [ -z "$join_at" ]; then
               echo "Issue #$number has no join_at, skipping"
