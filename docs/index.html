@@ -192,8 +192,8 @@
     <script>
         // Configuration - secrets should be injected at build time
         const CONFIG = {
-            encryptionKey: typeof ENCRYPTION_KEY !== 'undefined' ? ENCRYPTION_KEY : '',
-            githubPat: typeof REPO_PAT !== 'undefined' ? REPO_PAT : '',
+            encryptionKey: window.ENCRYPTION_KEY || '',
+            githubPat: window.REPO_PAT || '',
             apiEndpoint: 'https://api.github.com/repos/DominikMak/class-joiner/actions/workflows/create-auto-sign-issue.yml/dispatches'
         };
 
