@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto zapisywanko</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        input[type="datetime-local"] {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .message {
+            margin-top: 20px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+            display: block;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Auto zapisywanko</h1>
+        <p class="subtitle">Zapisywanko dla płomyczków</p>
+
+        <form id="signupForm">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" required placeholder="twoj.email@example.com">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Hasło</label>
+                <input type="password" id="password" required placeholder="Twoje hasło">
+            </div>
+
+            <div class="form-group">
+                <label for="className">Nazwa zajęć</label>
+                <input type="text" id="className" required placeholder="np. SHAPE">
+            </div>
+
+            <div class="form-group">
+                <label for="classDate">Data zajęć (DD.MM) <- koniecznie DD.MM</label>
+                <input type="text" id="classDate" required placeholder="DD.MM (np. 19.01)">
+            </div>
+
+            <div class="form-group">
+                <label for="classTime">Godzina zajęć (GG:MM) <-- nawet jak jest 9:00 to pisz 09:00</label>
+                <input type="text" id="classTime" required placeholder="GG:MM (np. 09:00)">
+            </div>
+
+            <div class="form-group">
+                <label for="joinAt">Dołącz o - o której i kiedy ma wejść i kliknąć, kumasz?</label>
+                <input type="datetime-local" id="joinAt" required>
+            </div>
+
+            <button type="submit" id="submitBtn">
+                Wyślij rejestrację
+            </button>
+        </form>
+
+        <div id="message" class="message"></div>
+    </div>
+
+    <script>
+        // Configuration - secrets should be injected at build time
+        const CONFIG = {
+            encryptionKey: typeof ENCRYPTION_KEY !== 'undefined' ? ENCRYPTION_KEY : '',
+            githubPat: typeof REPO_PAT !== 'undefined' ? REPO_PAT : '',
+            apiEndpoint: 'https://api.github.com/repos/DominikMak/class-joiner/actions/workflows/create-auto-sign-issue.yml/dispatches'
+        };
+
+        // Function to encrypt password using AES-256-CBC (matching openssl format)
+        function encryptPassword(password, key) {
+            if (!key) {
+                throw new Error('Klucz szyfrowania jest wymagany');
+            }
+
+            // Generate a random salt (8 bytes)
+            const salt = CryptoJS.lib.WordArray.random(8);
+            
+            // Derive key and IV from password and salt using EVP_BytesToKey (OpenSSL's key derivation)
+            // This matches openssl enc -aes-256-cbc behavior
+            const keySize = 256 / 32; // 8 words
+            const ivSize = 128 / 32; // 4 words
+            const iterations = 1; // OpenSSL uses 1 iteration by default
+            
+            // Use PBKDF2 to derive key and IV
+            const derivedParams = CryptoJS.PBKDF2(key, salt, {
+                keySize: keySize + ivSize,
+                iterations: iterations
+            });
+            
+            const derivedKey = CryptoJS.lib.WordArray.create(derivedParams.words.slice(0, keySize));
+            const derivedIV = CryptoJS.lib.WordArray.create(derivedParams.words.slice(keySize, keySize + ivSize));
+            
+            // Encrypt using AES-256-CBC
+            const encrypted = CryptoJS.AES.encrypt(password, derivedKey, {
+                iv: derivedIV,
+                mode: CryptoJS.mode.CBC,
+                padding: CryptoJS.pad.Pkcs7
+            });
+            
+            // Combine salt and encrypted data
+            const combined = CryptoJS.lib.WordArray.create()
+                .concat(salt)
+                .concat(encrypted.ciphertext);
+            
+            // Convert to base64 (OpenSSL format: Salted__ + base64)
+            const base64 = combined.toString(CryptoJS.enc.Base64);
+            
+            // OpenSSL format: "Salted__" prefix + base64
+            return 'U2FsdGVkX1' + base64.substring(0, base64.indexOf('=') === -1 ? base64.length : base64.indexOf('='));
+        }
+
+        // Alternative simpler approach that matches OpenSSL's -pass pass: behavior more closely
+        function encryptPasswordOpenSSL(password, key) {
+            if (!key) {
+                throw new Error('Klucz szyfrowania jest wymagany');
+            }
+
+            // OpenSSL with -pass pass:key uses EVP_BytesToKey with MD5
+            // This is a simplified version that should work
+            const salt = CryptoJS.lib.WordArray.random(8);
+            
+            // Use MD5 for key derivation (OpenSSL default)
+            const md5 = CryptoJS.algo.MD5.create();
+            md5.update(key);
+            md5.update(salt);
+            const hash1 = md5.finalize();
+            
+            md5.reset();
+            md5.update(hash1);
+            md5.update(key);
+            md5.update(salt);
+            const hash2 = md5.finalize();
+            
+            md5.reset();
+            md5.update(hash2);
+            md5.update(key);
+            md5.update(salt);
+            const hash3 = md5.finalize();
+            
+            // Combine hashes for key (32 bytes) and IV (16 bytes)
+            const keyMaterial = hash1.clone().concat(hash2);
+            const iv = hash3.words.slice(0, 4);
+            
+            // Encrypt
+            const encrypted = CryptoJS.AES.encrypt(password, keyMaterial, {
+                iv: CryptoJS.lib.WordArray.create(iv),
+                mode: CryptoJS.mode.CBC,
+                padding: CryptoJS.pad.Pkcs7
+            });
+            
+            // Format: "Salted__" (8 bytes) + salt (8 bytes) + ciphertext
+            const saltedPrefix = CryptoJS.enc.Utf8.parse('Salted__');
+            const combined = saltedPrefix.concat(salt).concat(encrypted.ciphertext);
+            
+            return combined.toString(CryptoJS.enc.Base64);
+        }
+
+        // Show message
+        function showMessage(text, type) {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.className = `message ${type}`;
+            messageEl.style.display = 'block';
+        }
+
+        // Hide message
+        function hideMessage() {
+            document.getElementById('message').style.display = 'none';
+        }
+
+        // Format date to DD.MM format
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            return `${day}.${month}`;
+        }
+
+        // Format time to HH:MM format
+        function formatTime(dateString) {
+            const date = new Date(dateString);
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${hours}:${minutes}`;
+        }
+
+        // Handle form submission
+        document.getElementById('signupForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            hideMessage();
+
+            const submitBtn = document.getElementById('submitBtn');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loading"></span>Przetwarzanie...';
+
+            try {
+                // Get configuration from injected secrets
+                const encryptionKey = CONFIG.encryptionKey;
+                const githubPat = CONFIG.githubPat;
+
+                if (!encryptionKey) {
+                    throw new Error('Klucz szyfrowania nie jest skonfigurowany. Proszę ustawić sekret ENCRYPTION_KEY.');
+                }
+
+                if (!githubPat) {
+                    throw new Error('GitHub PAT nie jest skonfigurowany. Proszę ustawić sekret REPO_PAT.');
+                }
+
+                // Get form values
+                const email = document.getElementById('email').value.trim();
+                const password = document.getElementById('password').value;
+                const className = document.getElementById('className').value.trim();
+                const classDate = document.getElementById('classDate').value.trim();
+                const classTime = document.getElementById('classTime').value.trim();
+                const joinAt = document.getElementById('joinAt').value;
+
+                // Validate inputs
+                if (!email || !password || !className || !classDate || !classTime || !joinAt) {
+                    throw new Error('Proszę wypełnić wszystkie pola');
+                }
+
+                // Convert joinAt to ISO format if needed
+                let joinAtISO = joinAt;
+                if (!joinAt.includes('T')) {
+                    joinAtISO = new Date(joinAt).toISOString();
+                } else if (!joinAt.endsWith('Z') && !joinAt.includes('+') && !joinAt.includes('-', 10)) {
+                    // If it's datetime-local format, convert to ISO
+                    joinAtISO = new Date(joinAt).toISOString();
+                }
+
+                // Encrypt password
+                let encryptedPassword;
+                try {
+                    encryptedPassword = encryptPasswordOpenSSL(password, encryptionKey);
+                } catch (err) {
+                    throw new Error('Nie udało się zaszyfrować hasła: ' + err.message);
+                }
+
+                // Prepare request body
+                const requestBody = {
+                    ref: "main",
+                    inputs: {
+                        email: email,
+                        password: encryptedPassword,
+                        class_name: className,
+                        class_date: classDate,
+                        class_time: classTime,
+                        join_at: joinAtISO
+                    }
+                };
+
+                // Make API request
+                const response = await fetch(CONFIG.apiEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/vnd.github+json',
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${githubPat}`,
+                        'X-GitHub-Api-Version': '2022-11-28'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    let errorMessage = `Żądanie API nie powiodło się ze statusem ${response.status}`;
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        if (errorJson.message) {
+                            errorMessage = errorJson.message;
+                        }
+                    } catch (e) {
+                        if (errorText) {
+                            errorMessage += ': ' + errorText;
+                        }
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                showMessage('Pomyślnie wysłano żądanie rejestracji!', 'success');
+                
+                // Reset form
+                document.getElementById('signupForm').reset();
+                
+            } catch (error) {
+                showMessage('Błąd: ' + error.message, 'error');
+                console.error('Error:', error);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        });
+
+        // Auto-fill joinAt with current date/time + 1 day as default
+        window.addEventListener('DOMContentLoaded', function() {
+            const joinAtInput = document.getElementById('joinAt');
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(17, 55, 0, 0); // Default to 17:55 as in example
+            
+            // Format for datetime-local input (YYYY-MM-DDTHH:mm)
+            const year = tomorrow.getFullYear();
+            const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+            const day = String(tomorrow.getDate()).padStart(2, '0');
+            const hours = String(tomorrow.getHours()).padStart(2, '0');
+            const minutes = String(tomorrow.getMinutes()).padStart(2, '0');
+            
+            joinAtInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+        });
+    </script>
+</body>
+</html>
