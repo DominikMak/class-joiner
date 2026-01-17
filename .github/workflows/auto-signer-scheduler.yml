@@ -77,6 +77,7 @@ jobs:
               class_time=$(echo "$body" | grep -m1 '^[[:space:]]*class_time=' | cut -d= -f2)
           
               gh workflow run auto-signer.yml \
+                -f issue_number="$number" \
                 -f email="$email" \
                 -f password="$password" \
                 -f class_name="$class_name" \
