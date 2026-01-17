@@ -5,6 +5,11 @@ on:
     - cron: "*/5 * * * *"
   workflow_dispatch: {}
 
+permissions:
+  issues: write
+  actions: write
+
+
 jobs:
   scan-issues:
     runs-on: ubuntu-latest
