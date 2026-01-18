@@ -221,15 +221,15 @@
 
         // Handle form submission
         document.getElementById('signupForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            hideMessage();
+
+            const submitBtn = document.getElementById('submitBtn');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loading"></span>Przetwarzanie...';
+
             try {
-                e.preventDefault();
-                hideMessage();
-    
-                const submitBtn = document.getElementById('submitBtn');
-                const originalText = submitBtn.innerHTML;
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<span class="loading"></span>Przetwarzanie...';
-    
                 // Get form values
                 const email = document.getElementById('email').value.trim();
                 const password = document.getElementById('password').value;
