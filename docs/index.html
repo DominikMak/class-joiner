@@ -152,15 +152,6 @@
 
         <form id="signupForm">
             <div class="form-group">
-                <label for="secret1">Tajne hasło 1</label>
-                <input type="password" id="secret1" required placeholder="Wprowadź tajne hasło 1">
-            </div>
-
-            <div class="form-group">
-                <label for="secret2">Tajne hasło 2</label>
-                <input type="password" id="secret2" required placeholder="Wprowadź tajne hasło 2">
-            </div>
-            <div class="form-group">
                 <label for="email">Email</label>
                 <input type="email" id="email" required placeholder="twoj.email@example.com">
             </div>
@@ -199,149 +190,6 @@
     </div>
 
     <script>
-        // Configuration
-        const CONFIG = {
-            apiEndpoint: 'https://api.github.com/repos/DominikMak/class-joiner/actions/workflows/create-auto-sign-issue.yml/dispatches'
-        };
-
-        // Cookie helper functions
-        function setCookie(name, value, days = 365) {
-            const date = new Date();
-            date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-            const expires = "expires=" + date.toUTCString();
-            document.cookie = name + "=" + encodeURIComponent(value) + ";" + expires + ";path=/;SameSite=Strict";
-        }
-
-        function getCookie(name) {
-            const nameEQ = name + "=";
-            const ca = document.cookie.split(';');
-            for (let i = 0; i < ca.length; i++) {
-                let c = ca[i];
-                while (c.charAt(0) === ' ') c = c.substring(1, c.length);
-                if (c.indexOf(nameEQ) === 0) {
-                    return decodeURIComponent(c.substring(nameEQ.length, c.length));
-                }
-            }
-            return null;
-        }
-
-        // Load saved secrets from cookies on page load
-        window.addEventListener('DOMContentLoaded', function() {
-            const secret1 = getCookie('secret1');
-            const secret2 = getCookie('secret2');
-            
-            if (secret1) {
-                document.getElementById('secret1').value = secret1;
-            }
-            if (secret2) {
-                document.getElementById('secret2').value = secret2;
-            }
-
-            // Auto-fill joinAt with current date/time + 1 day as default
-            const joinAtInput = document.getElementById('joinAt');
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            tomorrow.setHours(17, 55, 0, 0); // Default to 17:55 as in example
-            
-            // Format for datetime-local input (YYYY-MM-DDTHH:mm)
-            const year = tomorrow.getFullYear();
-            const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
-            const day = String(tomorrow.getDate()).padStart(2, '0');
-            const hours = String(tomorrow.getHours()).padStart(2, '0');
-            const minutes = String(tomorrow.getMinutes()).padStart(2, '0');
-            
-            joinAtInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
-        });
-
-        // Function to encrypt password using AES-256-CBC (matching openssl format)
-        function encryptPassword(password, key) {
-            if (!key) {
-                throw new Error('Klucz szyfrowania jest wymagany');
-            }
-
-            // Generate a random salt (8 bytes)
-            const salt = CryptoJS.lib.WordArray.random(8);
-            
-            // Derive key and IV from password and salt using EVP_BytesToKey (OpenSSL's key derivation)
-            // This matches openssl enc -aes-256-cbc behavior
-            const keySize = 256 / 32; // 8 words
-            const ivSize = 128 / 32; // 4 words
-            const iterations = 1; // OpenSSL uses 1 iteration by default
-            
-            // Use PBKDF2 to derive key and IV
-            const derivedParams = CryptoJS.PBKDF2(key, salt, {
-                keySize: keySize + ivSize,
-                iterations: iterations
-            });
-            
-            const derivedKey = CryptoJS.lib.WordArray.create(derivedParams.words.slice(0, keySize));
-            const derivedIV = CryptoJS.lib.WordArray.create(derivedParams.words.slice(keySize, keySize + ivSize));
-            
-            // Encrypt using AES-256-CBC
-            const encrypted = CryptoJS.AES.encrypt(password, derivedKey, {
-                iv: derivedIV,
-                mode: CryptoJS.mode.CBC,
-                padding: CryptoJS.pad.Pkcs7
-            });
-            
-            // Combine salt and encrypted data
-            const combined = CryptoJS.lib.WordArray.create()
-                .concat(salt)
-                .concat(encrypted.ciphertext);
-            
-            // Convert to base64 (OpenSSL format: Salted__ + base64)
-            const base64 = combined.toString(CryptoJS.enc.Base64);
-            
-            // OpenSSL format: "Salted__" prefix + base64
-            return 'U2FsdGVkX1' + base64.substring(0, base64.indexOf('=') === -1 ? base64.length : base64.indexOf('='));
-        }
-
-        // Alternative simpler approach that matches OpenSSL's -pass pass: behavior more closely
-        function encryptPasswordOpenSSL(password, key) {
-            if (!key) {
-                throw new Error('Klucz szyfrowania jest wymagany');
-            }
-
-            // OpenSSL with -pass pass:key uses EVP_BytesToKey with MD5
-            // This is a simplified version that should work
-            const salt = CryptoJS.lib.WordArray.random(8);
-            
-            // Use MD5 for key derivation (OpenSSL default)
-            const md5 = CryptoJS.algo.MD5.create();
-            md5.update(key);
-            md5.update(salt);
-            const hash1 = md5.finalize();
-            
-            md5.reset();
-            md5.update(hash1);
-            md5.update(key);
-            md5.update(salt);
-            const hash2 = md5.finalize();
-            
-            md5.reset();
-            md5.update(hash2);
-            md5.update(key);
-            md5.update(salt);
-            const hash3 = md5.finalize();
-            
-            // Combine hashes for key (32 bytes) and IV (16 bytes)
-            const keyMaterial = hash1.clone().concat(hash2);
-            const iv = hash3.words.slice(0, 4);
-            
-            // Encrypt
-            const encrypted = CryptoJS.AES.encrypt(password, keyMaterial, {
-                iv: CryptoJS.lib.WordArray.create(iv),
-                mode: CryptoJS.mode.CBC,
-                padding: CryptoJS.pad.Pkcs7
-            });
-            
-            // Format: "Salted__" (8 bytes) + salt (8 bytes) + ciphertext
-            const saltedPrefix = CryptoJS.enc.Utf8.parse('Salted__');
-            const combined = saltedPrefix.concat(salt).concat(encrypted.ciphertext);
-            
-            return combined.toString(CryptoJS.enc.Base64);
-        }
-
         // Show message
         function showMessage(text, type) {
             const messageEl = document.getElementById('message');
@@ -373,35 +221,15 @@
 
         // Handle form submission
         document.getElementById('signupForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            hideMessage();
-
-            const submitBtn = document.getElementById('submitBtn');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="loading"></span>Przetwarzanie...';
-
             try {
-                // Get secrets from form inputs
-                const secret1 = document.getElementById('secret1').value.trim();
-                const secret2 = document.getElementById('secret2').value.trim();
-
-                if (!secret1) {
-                    throw new Error('Proszę wprowadzić Tajne hasło 1.');
-                }
-
-                if (!secret2) {
-                    throw new Error('Proszę wprowadzić Tajne hasło 2.');
-                }
-
-                // Save secrets to cookies
-                setCookie('secret1', secret1);
-                setCookie('secret2', secret2);
-
-                // Use secret1 as encryption key and secret2 as GitHub PAT
-                const encryptionKey = secret1;
-                const githubPat = secret2;
-
+                e.preventDefault();
+                hideMessage();
+    
+                const submitBtn = document.getElementById('submitBtn');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="loading"></span>Przetwarzanie...';
+    
                 // Get form values
                 const email = document.getElementById('email').value.trim();
                 const password = document.getElementById('password').value;
@@ -409,12 +237,12 @@
                 const classDate = document.getElementById('classDate').value.trim();
                 const classTime = document.getElementById('classTime').value.trim();
                 const joinAt = document.getElementById('joinAt').value;
-
+    
                 // Validate inputs
                 if (!email || !password || !className || !classDate || !classTime || !joinAt) {
                     throw new Error('Proszę wypełnić wszystkie pola');
                 }
-
+    
                 // Convert joinAt to ISO format if needed
                 let joinAtISO = joinAt;
                 if (!joinAt.includes('T')) {
@@ -423,40 +251,22 @@
                     // If it's datetime-local format, convert to ISO
                     joinAtISO = new Date(joinAt).toISOString();
                 }
-
-                // Encrypt password
-                let encryptedPassword;
-                try {
-                    encryptedPassword = encryptPasswordOpenSSL(password, encryptionKey);
-                } catch (err) {
-                    throw new Error('Nie udało się zaszyfrować hasła: ' + err.message);
-                }
-
-                // Prepare request body
-                const requestBody = {
-                    ref: "main",
-                    inputs: {
-                        email: email,
-                        password: encryptedPassword,
+                // Make API request
+                const response = await fetch("https://class-joiner-dispatcher.dosiu-dm.workers.dev", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        email,
+                        password,
                         class_name: className,
                         class_date: classDate,
                         class_time: classTime,
                         join_at: joinAtISO
-                    }
-                };
-
-                // Make API request
-                const response = await fetch(CONFIG.apiEndpoint, {
-                    method: 'POST',
-                    headers: {
-                        'Accept': 'application/vnd.github+json',
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${githubPat}`,
-                        'X-GitHub-Api-Version': '2022-11-28'
-                    },
-                    body: JSON.stringify(requestBody)
+                    })
                 });
-
+    
                 if (!response.ok) {
                     const errorText = await response.text();
                     let errorMessage = `Żądanie API nie powiodło się ze statusem ${response.status}`;
@@ -472,9 +282,9 @@
                     }
                     throw new Error(errorMessage);
                 }
-
+    
                 showMessage('Pomyślnie wysłano żądanie rejestracji!', 'success');
-                
+                    
                 // Reset form
                 document.getElementById('signupForm').reset();
                 
@@ -485,6 +295,23 @@
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalText;
             }
+        });
+
+        // Auto-fill joinAt with current date/time + 1 day as default
+        window.addEventListener('DOMContentLoaded', function() {
+            const joinAtInput = document.getElementById('joinAt');
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(17, 55, 0, 0); // Default to 17:55 as in example
+            
+            // Format for datetime-local input (YYYY-MM-DDTHH:mm)
+            const year = tomorrow.getFullYear();
+            const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+            const day = String(tomorrow.getDate()).padStart(2, '0');
+            const hours = String(tomorrow.getHours()).padStart(2, '0');
+            const minutes = String(tomorrow.getMinutes()).padStart(2, '0');
+            
+            joinAtInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
         });
     </script>
 </body>
