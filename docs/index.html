@@ -152,6 +152,15 @@
 
         <form id="signupForm">
             <div class="form-group">
+                <label for="secret1">Tajne hasło 1</label>
+                <input type="password" id="secret1" required placeholder="Wprowadź tajne hasło 1">
+            </div>
+
+            <div class="form-group">
+                <label for="secret2">Tajne hasło 2</label>
+                <input type="password" id="secret2" required placeholder="Wprowadź tajne hasło 2">
+            </div>
+            <div class="form-group">
                 <label for="email">Email</label>
                 <input type="email" id="email" required placeholder="twoj.email@example.com">
             </div>
@@ -190,12 +199,59 @@
     </div>
 
     <script>
-        // Configuration - secrets should be injected at build time
+        // Configuration
         const CONFIG = {
-            encryptionKey: window.ENCRYPTION_KEY || '',
-            githubPat: window.REPO_PAT || '',
             apiEndpoint: 'https://api.github.com/repos/DominikMak/class-joiner/actions/workflows/create-auto-sign-issue.yml/dispatches'
         };
+
+        // Cookie helper functions
+        function setCookie(name, value, days = 365) {
+            const date = new Date();
+            date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+            const expires = "expires=" + date.toUTCString();
+            document.cookie = name + "=" + encodeURIComponent(value) + ";" + expires + ";path=/;SameSite=Strict";
+        }
+
+        function getCookie(name) {
+            const nameEQ = name + "=";
+            const ca = document.cookie.split(';');
+            for (let i = 0; i < ca.length; i++) {
+                let c = ca[i];
+                while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) === 0) {
+                    return decodeURIComponent(c.substring(nameEQ.length, c.length));
+                }
+            }
+            return null;
+        }
+
+        // Load saved secrets from cookies on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            const secret1 = getCookie('secret1');
+            const secret2 = getCookie('secret2');
+            
+            if (secret1) {
+                document.getElementById('secret1').value = secret1;
+            }
+            if (secret2) {
+                document.getElementById('secret2').value = secret2;
+            }
+
+            // Auto-fill joinAt with current date/time + 1 day as default
+            const joinAtInput = document.getElementById('joinAt');
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(17, 55, 0, 0); // Default to 17:55 as in example
+            
+            // Format for datetime-local input (YYYY-MM-DDTHH:mm)
+            const year = tomorrow.getFullYear();
+            const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+            const day = String(tomorrow.getDate()).padStart(2, '0');
+            const hours = String(tomorrow.getHours()).padStart(2, '0');
+            const minutes = String(tomorrow.getMinutes()).padStart(2, '0');
+            
+            joinAtInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+        });
 
         // Function to encrypt password using AES-256-CBC (matching openssl format)
         function encryptPassword(password, key) {
@@ -326,17 +382,25 @@
             submitBtn.innerHTML = '<span class="loading"></span>Przetwarzanie...';
 
             try {
-                // Get configuration from injected secrets
-                const encryptionKey = CONFIG.encryptionKey;
-                const githubPat = CONFIG.githubPat;
+                // Get secrets from form inputs
+                const secret1 = document.getElementById('secret1').value.trim();
+                const secret2 = document.getElementById('secret2').value.trim();
 
-                if (!encryptionKey) {
-                    throw new Error('Klucz szyfrowania nie jest skonfigurowany. Proszę ustawić sekret ENCRYPTION_KEY.');
+                if (!secret1) {
+                    throw new Error('Proszę wprowadzić Tajne hasło 1.');
                 }
 
-                if (!githubPat) {
-                    throw new Error('GitHub PAT nie jest skonfigurowany. Proszę ustawić sekret REPO_PAT.');
+                if (!secret2) {
+                    throw new Error('Proszę wprowadzić Tajne hasło 2.');
                 }
+
+                // Save secrets to cookies
+                setCookie('secret1', secret1);
+                setCookie('secret2', secret2);
+
+                // Use secret1 as encryption key and secret2 as GitHub PAT
+                const encryptionKey = secret1;
+                const githubPat = secret2;
 
                 // Get form values
                 const email = document.getElementById('email').value.trim();
@@ -421,23 +485,6 @@
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalText;
             }
-        });
-
-        // Auto-fill joinAt with current date/time + 1 day as default
-        window.addEventListener('DOMContentLoaded', function() {
-            const joinAtInput = document.getElementById('joinAt');
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            tomorrow.setHours(17, 55, 0, 0); // Default to 17:55 as in example
-            
-            // Format for datetime-local input (YYYY-MM-DDTHH:mm)
-            const year = tomorrow.getFullYear();
-            const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
-            const day = String(tomorrow.getDate()).padStart(2, '0');
-            const hours = String(tomorrow.getHours()).padStart(2, '0');
-            const minutes = String(tomorrow.getMinutes()).padStart(2, '0');
-            
-            joinAtInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
         });
     </script>
 </body>
