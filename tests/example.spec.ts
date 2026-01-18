@@ -12,7 +12,6 @@ test('Join class', async ({ page }) => {
   await login(page, EMAIL, PASSWORD);
   await page.getByRole('link', { name: 'book Book' }).click();
   await joinClass(page);
-  await expect(page.getByText('Cancel booking').first()).toBeVisible();
 });
 
 async function login(page: Page, email: string, password: string) {
@@ -24,7 +23,6 @@ async function login(page: Page, email: string, password: string) {
 }
 
 async function joinClass(page: Page) {
-
   if (!classToJoinName || !classToJoinDate || !classToJoinTime) {
     throw new Error('Class to join not found');
   }
@@ -39,8 +37,17 @@ async function joinClass(page: Page) {
     await page.getByRole('button').nth(4).click();
   });
 
-  await page.locator('[ng-bind="model.StartTime | date: \'time\'"]').filter({ hasText: new RegExp(`^${classToJoinTime}$`) }).click();
-  await page.locator('baf\\:button').filter({ hasText: 'Book now Waiting list Cancel' }).click();
+  const classItem = page.locator('cp\\:classes-class-item').filter({
+    has: page.locator(
+      '[ng-bind="model.StartTime | date: \'time\'"]',
+      { hasText: classToJoinTime }
+    ),
+    hasText: classToJoinName
+  });
+  
+  await classItem.locator('.cp-btn-classes-action .calendar-item-state-bookable').click();
+
+  await expect(classItem.locator('.cp-btn-classes-action .calendar-item-state-booked')).toBeVisible();
 }
 
 async function retryAction(action: () => Promise<void>, actionOnError: () => Promise<void>, maxRetries: number = 3): Promise<void> {
