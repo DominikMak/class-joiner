@@ -18,52 +18,47 @@ jobs:
       name: github-pages
     env:
       ENCRYPTION_KEY: ${{ secrets.PASSWORD_ENCRYPTION_KEY }}
-      REPO_PAT: ${{ secrets.REPO_PAT }}
-    steps:
+      REPO_PAT: ${{ secrets.REPO_PAT }}steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
+    
       - name: Inject Environment Variables into HTML
+        env:
+          ENCRYPTION_KEY: ${{ secrets.PASSWORD_ENCRYPTION_KEY }}
+          REPO_PAT: ${{ secrets.REPO_PAT }}
         run: |
-          if [ -f docs/index.html ]; then
-            # Use Python to inject environment variables before the first <script> tag
-            python3 << 'PYTHON'
-          import re
+          python3 << 'PYTHON'
           import os
-          
-          with open('docs/index.html', 'r', encoding='utf-8') as f:
+          import json
+    
+          path = 'docs/index.html'
+    
+          with open(path, 'r', encoding='utf-8') as f:
               content = f.read()
-          
-          # Get environment variables (set from GitHub Secrets)
-          encryption_key = os.environ.get('ENCRYPTION_KEY', '')
-          repo_pat = os.environ.get('REPO_PAT', '')
-          
-          # Create the environment variables script
-          env_script = f'''    <script>
-            // Injected from GitHub Secrets
-            window.ENCRYPTION_KEY = '{encryption_key}';
-            window.REPO_PAT = '{repo_pat}';
+    
+          inject = f"""
+          <script>
+            window.ENCRYPTION_KEY = {json.dumps(os.environ['ENCRYPTION_KEY'])};
+            window.REPO_PAT = {json.dumps(os.environ['REPO_PAT'])};
           </script>
-          '''
-          
-          # Find the first <script> tag and insert before it
-          pattern = r'(<script>)'
-          replacement = env_script + r'\1'
-          content = re.sub(pattern, replacement, content, count=1)
-          
-          with open('docs/index.html', 'w', encoding='utf-8') as f:
+          """
+    
+          if '</head>' not in content:
+              raise Exception('Missing </head> tag')
+    
+          content = content.replace('</head>', inject + '\n</head>')
+    
+          with open(path, 'w', encoding='utf-8') as f:
               f.write(content)
           PYTHON
-          fi
-
-      - name: Upload artifact
+    
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+    
+      - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './docs'
-
+          path: ./docs
+    
       - name: Deploy to GitHub Pages
-        id: deployment
         uses: actions/deploy-pages@v4
