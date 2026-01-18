@@ -1,48 +1,44 @@
 name: Create Auto-Sign Issue
 
 on:
-  workflow_dispatch:
-    inputs:
-      email:
-        description: "User email"
-        required: true
-      password:
-        description: "Plain password"
-        required: true
-      class_name:
-        description: "Class name"
-        required: true
-      class_date:
-        description: "Class date"
-        required: true
-      class_time:
-        description: "Class time"
-        required: true
-      join_at:
-        description: "When to trigger auto-sign (Europe/Warsaw time)"
-        required: true
+  repository_dispatch:
+    types: [auto-sign-request]
 
 permissions:
   issues: write
-  actions: write
 
 jobs:
   create-issue:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
       - name: Create GitHub issue with pending label
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ENCRYPTION_KEY: ${{ secrets.PASSWORD_ENCRYPTION_KEY }}
-
         run: |
-          password_enc=$(echo "${{ inputs.password }}" | openssl enc -aes-256-cbc -a -salt -pass pass:$ENCRYPTION_KEY)
-          body="email=${{ inputs.email }}\npassword=$password_enc\nclass_name=${{ inputs.class_name }}\nclass_date=${{ inputs.class_date }}\nclass_time=${{ inputs.class_time }}\njoin_at=${{ inputs.join_at }}"
+          set -euo pipefail
+
+          payload='${{ toJson(github.event.client_payload) }}'
+
+          email=$(echo "$payload" | jq -r '.email')
+          password=$(echo "$payload" | jq -r '.password')
+          class_name=$(echo "$payload" | jq -r '.class_name')
+          class_date=$(echo "$payload" | jq -r '.class_date')
+          class_time=$(echo "$payload" | jq -r '.class_time')
+          join_at=$(echo "$payload" | jq -r '.join_at')
+
+          if [ -z "$email" ] || [ -z "$password" ] || [ -z "$join_at" ]; then
+            echo "Missing required fields"
+            exit 1
+          fi
+
+          password_enc=$(echo "$password" | \
+            openssl enc -aes-256-cbc -a -A -salt -pass pass:"$ENCRYPTION_KEY")
+
+          body="email=$email\npassword=$password_enc\nclass_name=$class_name\nclass_date=$class_date\nclass_time=$class_time\njoin_at=$join_at"
+
           gh issue create \
-            --title "Auto-sign request | ${{inputs.email}} | ${{inputs.class_name}}" \
+            --title "Auto-sign request | $email | $class_name" \
             --body "$body" \
             --label "auto-sign:pending"
