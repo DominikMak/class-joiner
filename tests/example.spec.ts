@@ -31,10 +31,14 @@ async function joinClass(page: Page) {
 
   await page.waitForTimeout(1000);
 
+  let buttonNth = 4;
+  const buttonNewNth = 5;
+
   await retryAction(async () => {
     await page.getByText(classToJoinDate, { exact: true }).click({ timeout: 1000 });
   }, async () => {
-    await page.getByRole('button').nth(4).click();
+    await page.getByRole('button').nth(buttonNth).click();
+    buttonNth = buttonNewNth;
   });
 
   const classItem = page.locator('cp\\:classes-class-item').filter({
